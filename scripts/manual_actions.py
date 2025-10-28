@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Callable, Iterable, Optional
+from typing import Callable, Optional
 
 import typer
 
@@ -11,7 +11,7 @@ from xhs_mcp.infra.browser import launch, new_context, pw
 from xhs_mcp.xhs.base import ActionContext
 from xhs_mcp.xhs.comment import CommentAction
 from xhs_mcp.xhs.feed_detail import FeedDetailAction
-from xhs_mcp.xhs.feeds import Feed, FeedsListAction, FilterOption, SearchAction, get_filter_option
+from xhs_mcp.xhs.feeds import Feed, FeedsListAction, SearchAction
 from xhs_mcp.xhs.like_favorite import FavoriteAction, LikeAction
 from xhs_mcp.xhs.publish import (
     PublishImageAction,
@@ -80,21 +80,6 @@ def _print_json(data) -> None:
     typer.echo(json.dumps(data, ensure_ascii=False, indent=2))
 
 
-def _parse_filters(raw_filters: Iterable[str]) -> list[FilterOption]:
-    filters: list[FilterOption] = []
-    for item in raw_filters:
-        if ":" in item:
-            group_str, text = item.split(":", 1)
-            try:
-                group = int(group_str)
-            except ValueError as exc:
-                raise typer.BadParameter(f"Invalid filters_index '{group_str}'") from exc
-            filters.append(get_filter_option(group, text))
-        else:
-            raise typer.BadParameter("Filter format must be '<group>:<text>'")
-    return filters
-
-
 @app.command()
 def feeds_list(
     profile: Optional[str] = typer.Option(None, help="Profile name"),
@@ -116,22 +101,17 @@ def feeds_list(
 @app.command()
 def search(
     keyword: str = typer.Argument(..., help="Search keyword"),
-    filter_option: list[str] = typer.Option(
-        [], "--filter", help="Filter in '<group>:<text>' format (e.g. '1:最新')"
-    ),
     profile: Optional[str] = typer.Option(None),
     cookies_path: Optional[str] = typer.Option(None),
     bin: Optional[str] = typer.Option(None),
     debug_dir: Optional[Path] = typer.Option(None, help="Dump DOM/screenshot to this directory"),
     trace: bool = typer.Option(False, help="Capture Playwright trace inside debug directory"),
 ):
-    """Search feeds with optional filters."""
-
-    filters = _parse_filters(filter_option) if filter_option else None
+    """Search feeds for a keyword."""
 
     def handler(ctx: ActionContext) -> None:
         action = SearchAction(ctx)
-        feeds = action.search(keyword, filters)
+        feeds = action.search(keyword)
         _print_json([feed.raw for feed in feeds])
 
     _run_with_page(profile, cookies_path, bin, handler, debug_dir, trace)
