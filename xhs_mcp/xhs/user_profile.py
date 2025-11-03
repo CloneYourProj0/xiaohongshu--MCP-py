@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
-from playwright.sync_api import Page
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 
 from .base import ActionContext, PlaywrightAction
 
@@ -21,7 +21,10 @@ class UserProfileAction(PlaywrightAction):
         page: Page = self.page
         url = f"https://www.xiaohongshu.com/user/profile/{user_id}?xsec_token={xsec_token}&xsec_source=pc_note"
         page.goto(url, wait_until="domcontentloaded")
-        page.wait_for_load_state("networkidle")
+        try:
+            page.wait_for_load_state("networkidle", timeout=3_000)
+        except PlaywrightTimeoutError:
+            pass
         return self._extract_profile(page)
 
     def get_my_profile_via_sidebar(self) -> UserProfile:
@@ -30,7 +33,10 @@ class UserProfileAction(PlaywrightAction):
 
         navigate = NavigateAction(ActionContext(page))
         navigate.to_profile_page()
-        page.wait_for_load_state("networkidle")
+        try:
+            page.wait_for_load_state("networkidle", timeout=3_000)
+        except PlaywrightTimeoutError:
+            pass
         return self._extract_profile(page)
 
     def _extract_profile(self, page: Page) -> UserProfile:
@@ -76,4 +82,3 @@ class UserProfileAction(PlaywrightAction):
                     profile.feeds.extend(feeds)
 
         return profile
-

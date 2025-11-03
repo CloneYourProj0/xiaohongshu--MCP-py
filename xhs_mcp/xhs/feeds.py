@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 from urllib.parse import urlencode
 
-from playwright.sync_api import Page
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 
 from .base import ActionContext, PlaywrightAction
 
@@ -55,7 +55,10 @@ class SearchAction(PlaywrightAction):
         page: Page = self.page
         query = urlencode({"keyword": keyword, "source": "web_explore_feed"})
         page.goto(f"https://www.xiaohongshu.com/search_result?{query}", wait_until="domcontentloaded")
-        page.wait_for_load_state("networkidle")
+        try:
+            page.wait_for_load_state("networkidle", timeout=3_000)
+        except PlaywrightTimeoutError:
+            pass
 
         payload = page.evaluate(
             """

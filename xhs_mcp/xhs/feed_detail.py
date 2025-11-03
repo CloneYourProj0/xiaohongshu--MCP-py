@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from playwright.sync_api import Page
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 
 from .base import ActionContext, PlaywrightAction
 
@@ -20,7 +20,10 @@ class FeedDetailAction(PlaywrightAction):
         page: Page = self.page
         url = f"https://www.xiaohongshu.com/explore/{feed_id}?xsec_token={xsec_token}&xsec_source=pc_feed"
         page.goto(url, wait_until="domcontentloaded")
-        page.wait_for_load_state("networkidle")
+        try:
+            page.wait_for_load_state("networkidle", timeout=3_000)
+        except PlaywrightTimeoutError:
+            pass
 
         payload = page.evaluate(
             """
@@ -42,4 +45,3 @@ class FeedDetailAction(PlaywrightAction):
         note = detail.get("note", {})
         comments = detail.get("comments", {})
         return FeedDetail(data=note, comments=comments)
-

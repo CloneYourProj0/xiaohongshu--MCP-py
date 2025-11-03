@@ -31,20 +31,83 @@ class PublishVideoContent:
 
 class _PublishBase(PlaywrightAction):
     def _goto_publish(self) -> None:
-        self.page.goto(PUBLISH_URL, wait_until="domcontentloaded")
-        self.page.wait_for_load_state("networkidle")
+        page = self.page
+        page.goto(PUBLISH_URL, wait_until="domcontentloaded")
+        page.wait_for_load_state("networkidle", timeout=30_000)
+
+    def _remove_popover(self) -> None:
+        page = self.page
+        popover = page.locator("div.d-popover")
+        if popover.count() == 0:
+            return
+        try:
+            popover.first.evaluate("(el) => el.remove()")
+        except Exception:
+            pass
+        page.mouse.click(420, 80)
+
+    def _is_tab_blocked(self, element: Locator) -> bool:
+        try:
+            return element.evaluate(
+                """
+                (el) => {
+                  const rect = el.getBoundingClientRect();
+                  if (rect.width === 0 || rect.height === 0) return true;
+                  const x = rect.left + rect.width / 2;
+                  const y = rect.top + rect.height / 2;
+                  const target = document.elementFromPoint(x, y);
+                  return !(target === el || el.contains(target));
+                }
+                """
+            )
+        except Exception:
+            return False
 
     def _select_tab(self, label: str) -> None:
         page = self.page
-        tab = page.locator("div.creator-tab", has_text=label)
-        tab.first.wait_for(timeout=30_000)
-        for _ in range(10):
-            try:
-                tab.first.click()
-                return
-            except Exception:
-                page.mouse.click(420, 80)
-                time.sleep(0.2)
+        page.locator("div.upload-content").first.wait_for(timeout=30_000)
+
+        tab_candidates = [
+            page.locator("div.creator-tab", has_text=label),
+            page.locator("div.publish-tabs .tab-item", has_text=label),
+            page.locator("button", has_text=label),
+            page.locator("a", has_text=label),
+            page.get_by_text(label, exact=True),
+            page.get_by_text(label, exact=False),
+        ]
+
+        deadline = time.time() + 15
+        while time.time() < deadline:
+            for candidate in tab_candidates:
+                count = candidate.count()
+                if count == 0:
+                    continue
+
+                for index in range(count):
+                    locator = candidate.nth(index)
+                    try:
+                        locator.wait_for(state="attached", timeout=2_000)
+                    except PlaywrightTimeoutError:
+                        continue
+
+                    if not locator.is_visible():
+                        continue
+
+                    if self._is_tab_blocked(locator):
+                        self._remove_popover()
+                        time.sleep(0.2)
+                        continue
+
+                    try:
+                        locator.click()
+                        return
+                    except Exception:
+                        page.mouse.click(420, 80)
+                        time.sleep(0.2)
+                        continue
+
+            time.sleep(0.2)
+
         raise RuntimeError(f"unable to select publish tab {label}")
 
     def _find_content_editor(self, page: Page) -> Locator:
@@ -124,4 +187,3 @@ class PublishVideoAction(_PublishBase):
         self._fill_text_and_tags(page, payload.title, payload.content, payload.tags)
         publish_btn.first.click()
         page.wait_for_timeout(3_000)
-

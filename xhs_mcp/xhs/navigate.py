@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from playwright.sync_api import Page
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 
 from .base import PlaywrightAction
 
@@ -14,10 +14,12 @@ class NavigateAction(PlaywrightAction):
     def to_profile_page(self) -> None:
         page: Page = self.page
         self.to_explore_page()
-        page.wait_for_load_state("networkidle")
+        try:
+            page.wait_for_load_state("networkidle", timeout=3_000)
+        except PlaywrightTimeoutError:
+            pass
         profile_link = page.locator(
             "div.main-container li.user.side-bar-component a.link-wrapper span.channel"
         )
         profile_link.first.click()
         page.wait_for_load_state("load")
-

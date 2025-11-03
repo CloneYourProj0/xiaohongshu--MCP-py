@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from playwright.sync_api import Page
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 
 from .base import PlaywrightAction
 
@@ -36,7 +36,10 @@ class LikeAction(PlaywrightAction):
         page: Page = self.page
         url = f"https://www.xiaohongshu.com/explore/{feed_id}?xsec_token={xsec_token}&xsec_source=pc_feed"
         page.goto(url, wait_until="domcontentloaded")
-        page.wait_for_load_state("networkidle")
+        try:
+            page.wait_for_load_state("networkidle", timeout=3_000)
+        except PlaywrightTimeoutError:
+            pass
 
         try:
             liked, _ = _load_interact_state(page, feed_id)
@@ -75,7 +78,10 @@ class FavoriteAction(PlaywrightAction):
         page: Page = self.page
         url = f"https://www.xiaohongshu.com/explore/{feed_id}?xsec_token={xsec_token}&xsec_source=pc_feed"
         page.goto(url, wait_until="domcontentloaded")
-        page.wait_for_load_state("networkidle")
+        try:
+            page.wait_for_load_state("networkidle", timeout=3_000)
+        except PlaywrightTimeoutError:
+            pass
 
         try:
             _, collected = _load_interact_state(page, feed_id)
@@ -101,4 +107,3 @@ class FavoriteAction(PlaywrightAction):
 
         button.click()
         page.wait_for_timeout(1_000)
-
