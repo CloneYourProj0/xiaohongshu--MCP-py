@@ -1,6 +1,6 @@
 # xiaohongshu-mcp-py
 
-> Python rewrite of the Xiaohongshu automation toolchain powered by Playwright + FastMCP. 以 Python 重写的小红书自动化组件，可直接作为 MCP 服务暴露给 LangGraph、Claude Desktop 等客户端。
+> Python rewrite of the Xiaohongshu automation toolchain powered by Playwright + FastMCP. 可直接作为 MCP 服务暴露给 cc或者cherry studio 等客户端。
 
 ## Table of Contents
 
